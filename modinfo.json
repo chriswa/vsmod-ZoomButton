@@ -1,0 +1,11 @@
+{
+  "type": "code",
+  "modid": "zoombutton",
+  "name": "ZoomButton",
+  "authors": [ "goxmeor" ],
+  "description": "Adds a HotKey which dynamically adjusts Field of View settings to allow for zooming.",
+  "version": "0.1.0",
+  "dependency": {
+    "game": ""
+  }
+}
