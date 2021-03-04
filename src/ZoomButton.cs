@@ -5,63 +5,75 @@ namespace ZoomButton
 {
     public class ZoomButton : ModSystem
     {
+        private static string HOTKEY_CODE = "zoombutton";
+        private static string FIELD_OF_VIEW_SETTING_NAME = "fieldOfView";
+        private static string MOUSE_SENSITIVITY_SETTING_NAME = "mouseSensivity"; // n.b. typo in Vintage Story's code!
+        private static float ZOOM_IN_TIME_S = 0.5F;
+        private static float ZOOM_OUT_TIME_S = 0.1F;
+        private static int TARGET_FIELD_OF_VIEW = 20;
+        private static float TARGET_MOUSE_SENSITIVITY_FACTOR = 0.5F;
+        private static int MAX_FRAMERATE_MS = 1000 / 90;
+
         private ICoreClientAPI capi;
-        private int previousFieldOfView = 80;
-        private int previousMouseSensivity = 100;
+        private int originalFieldOfView;
+        private int originalMouseSensivity;
         private bool isZooming = false;
+        private float zoomState = 0;
+
         public override void StartClientSide(ICoreClientAPI api)
         {
             base.StartClientSide(api);
             capi = api;
-            api.Input.RegisterHotKey("zoombutton", "Zoom (zoom)", GlKeys.Z, HotkeyType.CharacterControls);
-            api.Input.SetHotKeyHandler("zoombutton", (KeyCombination comb) =>
-            {
-                api.Logger.Event("Zoom HotKey pressed!");
-
-                if (isZooming) { return true; }
-                isZooming = true;
-
-                previousFieldOfView = api.Settings.Int["fieldOfView"];
-                previousMouseSensivity = api.Settings.Int["mouseSensivity"];
-
-                api.Event.RegisterCallback(OnTick, 10);
-
-                incrementalZoom();
-
-                return true;
-            });
-
+            api.Input.RegisterHotKey(HOTKEY_CODE, "Zoom in", GlKeys.Z, HotkeyType.CharacterControls);
+            api.Event.RegisterGameTickListener(OnGameTick, MAX_FRAMERATE_MS);
         }
 
-        private void incrementalZoom()
+        private void OnGameTick(float dt)
         {
-            // TODO: lerp over time
-            capi.Settings.Int["fieldOfView"] = max(20, capi.Settings.Int["fieldOfView"] - 3);
-            capi.Settings.Int["mouseSensivity"] = max(previousMouseSensivity / 2, capi.Settings.Int["mouseSensivity"] - 3);
-
-        }
-
-        private void OnTick(float dt)
-        {
-            bool isPressed = capi.Input.KeyboardKeyStateRaw[capi.Input.GetHotKeyByCode("zoombutton").CurrentMapping.KeyCode];
-            if (isPressed)
+            bool isHotKeyPressed = capi.Input.KeyboardKeyStateRaw[capi.Input.GetHotKeyByCode(HOTKEY_CODE).CurrentMapping.KeyCode];
+            
+            // is the player currently zooming in?
+            if (isHotKeyPressed && zoomState < 1)
             {
-                incrementalZoom();
+                // is this the start of a zoom?
+                if (!isZooming)
+                {
+                    originalFieldOfView = capi.Settings.Int[FIELD_OF_VIEW_SETTING_NAME];
+                    originalMouseSensivity = capi.Settings.Int[MOUSE_SENSITIVITY_SETTING_NAME];
+                    isZooming = true;
+                }
 
-                capi.Event.RegisterCallback(OnTick, 10);
+                // advance zoomState
+                zoomState += dt / ZOOM_IN_TIME_S;
+                if (zoomState > 1) {
+                    zoomState = 1; // clamp to 0..1
+                }
+                UpdateSettings();
             }
-            else
+            // is the player currently zooming out?
+            else if (!isHotKeyPressed && zoomState > 0)
             {
-                capi.Settings.Int["fieldOfView"] = previousFieldOfView;
-                capi.Settings.Int["mouseSensivity"] = previousMouseSensivity;
-                isZooming = false;
+                // advance zoomState
+                zoomState -= dt / ZOOM_OUT_TIME_S;
+                if (zoomState < 0) {
+                    zoomState = 0; // clamp to 0..1
+                    isZooming = false; // go back to initial state, which allows us to capture any player changes to settings
+                }
+                UpdateSettings();
             }
-
+            // otherwise we are already zoomed all the way in or out: nothing to do
+        }
+        
+        private void UpdateSettings()
+        {
+            // update fov and mouse sensitivity via linear interpolation based on zoomState 0..1
+            capi.Settings.Int[FIELD_OF_VIEW_SETTING_NAME] = lerp(originalFieldOfView, TARGET_FIELD_OF_VIEW, zoomState);
+            capi.Settings.Int[MOUSE_SENSITIVITY_SETTING_NAME] = lerp(originalMouseSensivity, originalMouseSensivity * TARGET_MOUSE_SENSITIVITY_FACTOR, zoomState);
         }
 
-        private int max(int a, int b)
+        private int lerp(float a, float b, float t)
         {
-            return a > b ? a : b;
+            return (int)System.Math.Round(a + (b - a) * t);
         }
     }
 }
