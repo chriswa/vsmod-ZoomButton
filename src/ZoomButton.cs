@@ -1,13 +1,8 @@
-﻿using System;
+using System;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 
-[assembly: ModInfo("ZoomButton",
-  Side = "Client",
-  Version = "1.0.4",
-  Description = "Hold down the HotKey (default Z) to zoom. Release to zoom back out.",
-  Website = "https://github.com/chriswa/vsmod-ZoomButton",
-  Authors = new[] { "goxmeor" })]
+[assembly: ModInfo("ZoomButton")]
 
 namespace ZoomButton {
   public class ZoomButton : ModSystem {
@@ -24,9 +19,9 @@ namespace ZoomButton {
     private bool isZooming = false;
     private float zoomState = 0;
     private ModConfig config;
+    private SquintOverlayRenderer renderer;
 
     public override void StartClientSide(ICoreClientAPI api) {
-      base.StartClientSide(api);
       capi = api;
 
       capi.Logger.Event("Hello from ZoomButton!");
@@ -40,6 +35,8 @@ namespace ZoomButton {
 
       api.Input.RegisterHotKey(HOTKEY_CODE, "Zoom in", GlKeys.Z, HotkeyType.CharacterControls);
       api.Event.RegisterGameTickListener(OnGameTick, MAX_FRAMERATE_MS);
+
+      renderer = new SquintOverlayRenderer(api);
     }
 
     private void OnGameTick(float dt) {
@@ -72,6 +69,7 @@ namespace ZoomButton {
         }
         UpdateSettings();
       }
+      renderer.PercentZoomed = zoomState;
       // otherwise we are already zoomed all the way in or out: nothing to do
     }
 

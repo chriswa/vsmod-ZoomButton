@@ -4,10 +4,11 @@
   "modid": "zoombutton",
   "name": "ZoomButton",
   "authors": [
-    "goxmeor"
+    "goxmeor",
+    "SpearAndFang"
   ],
   "description": "Hold down the HotKey (default Z) to zoom. Release to zoom back out.",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "dependency": {
     "game": ""
   }
